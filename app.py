@@ -12,6 +12,8 @@ import pandas as pd
 import numpy as np
 
 app = dash.Dash(__name__)
+server = app.server
+
 
 colors = {"graphBackground": "#F5F5F5",
           "background": "#ffffff", "text": "#000000"}
