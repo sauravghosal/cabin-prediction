@@ -76,6 +76,8 @@ def layout():
                         'flex-direction': 'row',
                     }
                 ),
+                dcc.Graph(id='plot', className='plot'),
+
                 dcc.Checklist(
                     options=year_options,
                     value=list(df_main['Year'].unique())[:2],
@@ -83,16 +85,9 @@ def layout():
                     className='select-year',
                 ),
             ],
-            style={
-                'display': 'flex',
-                'flex-direction': 'row',
-                'justifyContent': "space-between"
-            },
         ),
 
-        html.Div(
-            dcc.Graph(id='plot', className='plot'),
-        ),
+
 
         html.H4('', id='filename',),
         dcc.Upload(
