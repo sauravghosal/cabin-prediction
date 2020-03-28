@@ -19,24 +19,27 @@ colors = {"graphBackground": "#F5F5F5",
           "background": "#ffffff", "text": "#000000"}
 
 
-def parse_data(name='output1.xlsx'):
+def parse_data(name='output.xlsx'):
     sheets = pd.ExcelFile(name).book.sheets()
     data = []
     for i, sheet in enumerate(sheets):
         if sheet.visibility:
             continue
-        if sheet.name != 'Smoky Mountain Lodge' and sheet.name != 'Grandview Theater Lodge':
-            continue
+
         df = pd.read_excel(name, sheet_name=sheet.name,)
         df = df.drop(columns=df.columns.values[0])
+        if df.empty:
+            continue
         df['date'] = pd.to_datetime(
             df.loc[:, 'date'], format="%Y_%m_%d", errors='coerce')
         df.dropna()
-        df['30day'] = df['occupancybitmap'].str[:29].str.count("1")
-        df['60day'] = df['occupancybitmap'].str[:59].str.count("1")
-        df['90day'] = df['occupancybitmap'].str[:89].str.count("1")
+        df['30day'] = df['occupancy'].str[:29].str.count("1")
+        df['60day'] = df['occupancy'].str[:59].str.count("1")
+        df['90day'] = df['occupancy'].str[:89].str.count("1")
         df['Cabin'] = sheet.name
         df['Year'] = df['date'].dt.year
+        # move all dates to year 2000 to allow for graph overlay
+        df['date'] = df['date'].apply(lambda dt: dt.replace(year=2000))
         data.append(df)
     return pd.concat(data)
 
@@ -105,6 +108,8 @@ app.layout = layout()
         Output('filename', 'children'),
     ],
     [Input('upload', 'contents'), Input('upload', 'filename')],
+
+
 )
 def update_output(contents, filename):
     if contents:
@@ -141,7 +146,6 @@ def update_output(contents, filename):
 def update_plot(years, lookAhead, cabins):
     data = []
     df_main = parse_data()
-    df_main['date'] = df_main['date'].apply(lambda dt: dt.replace(year=2000))
     for cabin in cabins:
         for year in years:
             for day in lookAhead:
