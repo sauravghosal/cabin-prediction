@@ -35,9 +35,8 @@ def parse_data(name='output1.xlsx'):
         df['30day'] = df['occupancybitmap'].str[:29].str.count("1")
         df['60day'] = df['occupancybitmap'].str[:59].str.count("1")
         df['90day'] = df['occupancybitmap'].str[:89].str.count("1")
-        df['Year'] = df['date'].dt.year
-        df['Month'] = df['date'].dt.month_name()
         df['Cabin'] = sheet.name
+        df['Year'] = df['date'].dt.year
         data.append(df)
     return pd.concat(data)
 
@@ -46,12 +45,20 @@ def layout():
     df_main = parse_data()
     lookahead_options = [{'label': '30day', 'value': '30day'}, {
         'label': '60day', 'value': '60day'}, {'label': '90day', 'value': '90day'}]
+    cabin_options = [{'label': i, 'value': i}
+                     for i in df_main['Cabin'].unique()]
     year_options = [{'label': i, 'value': i}
                     for i in df_main['Year'].unique() if not math.isnan(i)]
     return html.Div([
         html.Div(
             className='container',
             children=[
+                dcc.Checklist(
+                    options=cabin_options,
+                    value=list(df_main['Cabin'].unique())[:1],
+                    id='select-cabin',
+                    className='select-cabin',
+                ),
                 dcc.Checklist(
                     options=lookahead_options,
                     value=['30day', '60day', '90day'],
@@ -93,6 +100,7 @@ app.layout = layout()
 
 @app.callback(
     [
+        Output('select-cabin', 'options'),
         Output('select-year', 'options'),
         Output('filename', 'children'),
     ],
@@ -107,48 +115,52 @@ def update_output(contents, filename):
             df_main = parse_data('input2.xlsx')
         except Exception:
             df_main = parse_data('output1.xlsx')
+            cabin_options = [
+                {'label': i, 'value': i} for i in df_main['Cabin'].unique()
+            ]
             year_options = [{'label': i, 'value': i}
                             for i in df_main['Year'].unique() if not math.isnan(i)]
-            return [year_options, 'File upload errored. Please Reupload']
+            return [cabin_options, year_options, 'File upload errored. Please Reupload']
         with open('input.xlsx', 'wb') as fp:
             fp.write(base64.decodebytes(data))
     df_main = parse_data()
+    cabin_options = [{'label': i, 'value': i}
+                     for i in df_main['Cabin'].unique()]
     year_options = [{'label': i, 'value': i}
                     for i in df_main['Year'].unique() if not math.isnan(i)]
-    return [year_options, filename]
+    return [cabin_options, year_options, filename]
 
 
 # need to work on updating and drawing the graph when buttons selected
 # how do i display information?
 @app.callback(
     Output('plot', 'figure'),
-    [Input('select-year', 'value'), Input('select-lookahead', 'value')],
+    [Input('select-year', 'value'), Input('select-lookahead',
+                                          'value'), Input('select-cabin', 'value')]
 )
-def update_plot(years, lookAhead):
+def update_plot(years, lookAhead, cabins):
     data = []
     df_main = parse_data()
-    cabins = list(df_main['Cabin'].unique())
+    df_main['date'] = df_main['date'].apply(lambda dt: dt.replace(year=2000))
     for cabin in cabins:
-        dates = [df_main['Year'].eq(int(year)) for year in years]
-        accumulated_dates = 0
-        for date in dates:
-            accumulated_dates = np.logical_or(accumulated_dates, date)
-        lookahead_data = df_main[accumulated_dates &
-                                 (df_main['Cabin'] == cabin)][lookAhead]
-        for day in lookAhead:
-            data.append(
-                go.Scatter(
-                    x=df_main[accumulated_dates & (
-                        df_main['Cabin'] == cabin)]['date'],
-                    y=lookahead_data[day],
-                    name=str(day) + ' look ahead for ' + str(cabin),
-                    line=dict(width=2),
-                    hoverinfo='y',
+        for year in years:
+            for day in lookAhead:
+                data.append(
+                    go.Scatter(
+                        x=df_main[(df_main['Year'] == int(year)) & (df_main['Cabin'] == cabin)
+                                  ]['date'],
+                        y=df_main[(df_main['Year'] == int(year)) & (df_main['Cabin'] == cabin)
+                                  ][day],
+                        name=str(day) + ' look ahead for ' +
+                        str(cabin) + ' - year ' + str(year),
+                        line=dict(width=2),
+                        hoverinfo='y',
+                    )
                 )
-            )
     layout = go.Layout(
         title='Cabin Rental Prediction Software', hovermode='closest')
     fig = go.Figure(data=data, layout=layout)
+    fig.update_layout(xaxis_tickformat='%d %B')
     fig.update_yaxes(hoverformat=".2f")
     return fig
 
