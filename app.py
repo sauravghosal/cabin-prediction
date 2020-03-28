@@ -53,23 +53,29 @@ def layout():
     year_options = [{'label': i, 'value': i}
                     for i in df_main['Year'].unique() if not math.isnan(i)]
     return html.Div([
+        html.H1("Ghosal RE Cabin Rental Prediction Software"),
+
         html.Div(
             className='container',
             children=[
-                dcc.Checklist(
-                    options=cabin_options,
-                    value=list(df_main['Cabin'].unique())[:1],
-                    id='select-cabin',
-                    className='select-cabin',
-                ),
                 dcc.Checklist(
                     options=lookahead_options,
                     value=['30day', '60day', '90day'],
                     id='select-lookahead',
                     className='select-lookahead',
                 ),
-                html.Div(
-                    dcc.Graph(id='plot', className='plot')),
+
+
+                dcc.Checklist(
+                    options=cabin_options,
+                    value=list(df_main['Cabin'].unique())[:1],
+                    id='select-cabin',
+                    className='select-cabin',
+                    style={
+                        "display": "flex",
+                        'flex-direction': 'row',
+                    }
+                ),
                 dcc.Checklist(
                     options=year_options,
                     value=list(df_main['Year'].unique())[:2],
@@ -77,6 +83,15 @@ def layout():
                     className='select-year',
                 ),
             ],
+            style={
+                'display': 'flex',
+                'flex-direction': 'row',
+                'justifyContent': "space-between"
+            },
+        ),
+
+        html.Div(
+            dcc.Graph(id='plot', className='plot'),
         ),
 
         html.H4('', id='filename',),
