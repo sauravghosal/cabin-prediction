@@ -32,7 +32,7 @@ def parse_data(name='output.xlsx'):
             continue
         df['date'] = pd.to_datetime(
             df.loc[:, 'date'], format="%Y_%m_%d", errors='coerce')
-        df.dropna()
+        df.dropna(inplace=True)
         df['30day'] = df['occupancy'].str[:29].str.count("1")
         df['60day'] = df['occupancy'].str[:59].str.count("1")
         df['90day'] = df['occupancy'].str[:89].str.count("1")
@@ -51,16 +51,24 @@ def layout():
     cabin_options = [{'label': i, 'value': i}
                      for i in df_main['Cabin'].unique()]
     year_options = [{'label': i, 'value': i}
-                    for i in df_main['Year'].unique() if not math.isnan(i)]
+                    for i in df_main['Year'].unique()]
+    year_options.sort(key=lambda item: item['value'], reverse=True)
     return html.Div([
         html.H1("Ghosal RE Cabin Rental Prediction Software"),
+
+        html.Div(
+            className="graph-container",
+            children=[
+                dcc.Graph(id='plot', className='plot')
+            ],
+        ),
 
         html.Div(
             className='container',
             children=[
                 dcc.Checklist(
                     options=lookahead_options,
-                    value=['30day', '60day', '90day'],
+                    value=['30day'],
                     id='select-lookahead',
                     className='select-lookahead',
                 ),
@@ -68,25 +76,23 @@ def layout():
 
                 dcc.Checklist(
                     options=cabin_options,
-                    value=list(df_main['Cabin'].unique())[:1],
+                    value=list(df_main['Cabin'].unique()),
                     id='select-cabin',
-                    className='select-cabin',
-                    style={
-                        "display": "flex",
-                        'flex-direction': 'row',
-                    }
+                    className='select-cabin'
                 ),
-                dcc.Graph(id='plot', className='plot'),
-
                 dcc.Checklist(
                     options=year_options,
-                    value=list(df_main['Year'].unique())[:2],
+                    value=list(df_main['Year'].unique())[:1],
                     id='select-year',
                     className='select-year',
                 ),
             ],
+            style={
+                'display': 'flex',
+                'flex-direction': 'row',
+                'justifyContent': 'space-around'
+            }
         ),
-
 
 
         html.H4('', id='filename',),
@@ -134,7 +140,8 @@ def update_output(contents, filename):
                 {'label': i, 'value': i} for i in df_main['Cabin'].unique()
             ]
             year_options = [{'label': i, 'value': i}
-                            for i in df_main['Year'].unique() if not math.isnan(i)]
+                            for i in df_main['Year'].unique()]
+            year_options.sort(key=lambda item: item['value'], reverse=True)
             return [cabin_options, year_options, 'File upload errored. Please Reupload']
         with open('input.xlsx', 'wb') as fp:
             fp.write(base64.decodebytes(data))
@@ -142,7 +149,8 @@ def update_output(contents, filename):
     cabin_options = [{'label': i, 'value': i}
                      for i in df_main['Cabin'].unique()]
     year_options = [{'label': i, 'value': i}
-                    for i in df_main['Year'].unique() if not math.isnan(i)]
+                    for i in df_main['Year'].unique()]
+    year_options.sort(key=lambda item: item['value'], reverse=True)
     return [cabin_options, year_options, filename]
 
 
@@ -165,8 +173,8 @@ def update_plot(years, lookAhead, cabins):
                                   ]['date'],
                         y=df_main[(df_main['Year'] == int(year)) & (df_main['Cabin'] == cabin)
                                   ][day],
-                        name=str(day) + ' look ahead for ' +
-                        str(cabin) + ' - year ' + str(year),
+                        name=str(day) + ' ' +
+                        str(cabin) + ' ' + str(year),
                         line=dict(width=2),
                         hoverinfo='y',
                     )
@@ -174,8 +182,10 @@ def update_plot(years, lookAhead, cabins):
     layout = go.Layout(
         title='Cabin Rental Prediction Software', hovermode='closest')
     fig = go.Figure(data=data, layout=layout)
-    fig.update_layout(xaxis_tickformat='%d %B')
-    fig.update_yaxes(hoverformat=".2f")
+    fig.update_layout(xaxis_tickformat='%d %B', autosize=True,  width=1500,
+                      height=450,  xaxis_title="Dates",
+                      yaxis_title="Bookings",)
+    fig.update_yaxes(hoverformat=".2f", ticksuffix=" days")
     return fig
 
 
