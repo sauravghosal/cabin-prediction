@@ -11,7 +11,7 @@ import math
 import pandas as pd
 import numpy as np
 
-app = dash.Dash(__name__)
+app = dash.Dash()
 server = app.server
 
 
@@ -33,9 +33,9 @@ def parse_data(name='output.xlsx'):
         df['date'] = pd.to_datetime(
             df.loc[:, 'date'], format="%Y_%m_%d", errors='coerce')
         df.dropna(inplace=True)
-        df['30day'] = df['occupancy'].str[:29].str.count("1")
-        df['60day'] = df['occupancy'].str[:59].str.count("1")
-        df['90day'] = df['occupancy'].str[:89].str.count("1")
+        df['30day'] = df.iloc[:, 1].str[:29].str.count("1")
+        df['60day'] = df.iloc[:, 1].str[:59].str.count("1")
+        df['90day'] = df.iloc[:, 1].str[:89].str.count("1")
         df['Cabin'] = sheet.name
         df['Year'] = df['date'].dt.year
         # move all dates to year 2000 to allow for graph overlay
@@ -54,63 +54,70 @@ def layout():
                     for i in df_main['Year'].unique()]
     year_options.sort(key=lambda item: item['value'], reverse=True)
     return html.Div([
-        html.H1("Ghosal RE Cabin Rental Prediction Software"),
-
         html.Div(
-            className="graph-container",
+            className="page-content",
             children=[
-                dcc.Graph(id='plot', className='plot')
-            ],
-        ),
+                html.H1("Ghosal RE Cabin Rental Prediction Software"),
 
-        html.Div(
-            className='container',
-            children=[
-                dcc.Checklist(
-                    options=lookahead_options,
-                    value=['30day'],
-                    id='select-lookahead',
-                    className='select-lookahead',
+                html.Div(
+                    className="graph-container",
+                    children=[
+                        dcc.Graph(id='plot', className='plot')
+                    ],
+                ),
+                html.Div(
+                    className='container',
+                    children=[
+                        dcc.Checklist(
+                            options=lookahead_options,
+                            value=['30day'],
+                            id='select-lookahead',
+                            className='select-lookahead',
+                        ),
+
+
+                        dcc.Checklist(
+                            options=cabin_options,
+                            value=list(df_main['Cabin'].unique()),
+                            id='select-cabin',
+                            className='select-cabin'
+                        ),
+                        dcc.Checklist(
+                            options=year_options,
+                            value=list(df_main['Year'].unique())[:1],
+                            id='select-year',
+                            className='select-year',
+                        ),
+
+                    ],
+                    style={
+                        'display': 'flex',
+                        'flex-direction': 'row',
+                        'justifyContent': 'space-around'
+                    }
                 ),
 
+                dcc.Upload(
+                    id='upload',
+                    children=html.Div(
+                        ['Drag and Drop or ', html.A('Select File')]),
+                    style={
+                        'width': '100%',
+                        'height': '60px',
+                        'lineHeight': '60px',
+                        'borderWidth': '1px',
+                        'borderStyle': 'dashed',
+                        'borderRadius': '5px',
+                        'textAlign': 'center',
+                    },
+                ),
 
-                dcc.Checklist(
-                    options=cabin_options,
-                    value=list(df_main['Cabin'].unique()),
-                    id='select-cabin',
-                    className='select-cabin'
-                ),
-                dcc.Checklist(
-                    options=year_options,
-                    value=list(df_main['Year'].unique())[:1],
-                    id='select-year',
-                    className='select-year',
-                ),
             ],
             style={
                 'display': 'flex',
-                'flex-direction': 'row',
+                'flex-direction': 'column',
                 'justifyContent': 'space-around'
-            }
-        ),
-
-
-        html.H4('', id='filename',),
-        dcc.Upload(
-            id='upload',
-            children=html.Div(
-                ['Drag and Drop or ', html.A('Select File')]),
-            style={
-                'width': '100%',
-                'height': '60px',
-                'lineHeight': '60px',
-                'borderWidth': '1px',
-                'borderStyle': 'dashed',
-                'borderRadius': '5px',
-                'textAlign': 'center',
-                'margin': '10px',
-            },
-        ),
+            })
     ])
 
 
@@ -121,37 +128,53 @@ app.layout = layout()
     [
         Output('select-cabin', 'options'),
         Output('select-year', 'options'),
-        Output('filename', 'children'),
+        Output('upload', 'style'),
     ],
     [Input('upload', 'contents'), Input('upload', 'filename')],
 
 
 )
 def update_output(contents, filename):
+    style = {'width': '100%',
+             'height': '60px',
+             'lineHeight': '60px',
+             'borderWidth': '1px',
+             'borderStyle': 'dashed',
+             'borderRadius': '5px',
+             'textAlign': 'center',
+             }
     if contents:
         try:
             data = contents.encode("utf8").split(b";base64,")[1]
-            with open('input2.xlsx', 'wb') as fp:
+            with open('output.xlsx', 'wb') as fp:
                 fp.write(base64.decodebytes(data))
-            df_main = parse_data('input2.xlsx')
-        except Exception:
-            df_main = parse_data('output1.xlsx')
+            df_main = parse_data('output.xlsx')
+            cabin_options = [{'label': i, 'value': i}
+                             for i in df_main['Cabin'].unique()]
+            year_options = [{'label': i, 'value': i}
+                            for i in df_main['Year'].unique()]
+            year_options.sort(key=lambda item: item['value'], reverse=True)
+            style['backgroundColor'] = 'green'
+            return [cabin_options, year_options, style]
+        # fallback
+        except:
+            df_main = parse_data()
             cabin_options = [
                 {'label': i, 'value': i} for i in df_main['Cabin'].unique()
             ]
             year_options = [{'label': i, 'value': i}
                             for i in df_main['Year'].unique()]
             year_options.sort(key=lambda item: item['value'], reverse=True)
-            return [cabin_options, year_options, 'File upload errored. Please Reupload']
-        with open('input.xlsx', 'wb') as fp:
-            fp.write(base64.decodebytes(data))
+            style['backgroundColor'] = 'red'
+            return [cabin_options, year_options, style]
     df_main = parse_data()
     cabin_options = [{'label': i, 'value': i}
                      for i in df_main['Cabin'].unique()]
     year_options = [{'label': i, 'value': i}
                     for i in df_main['Year'].unique()]
     year_options.sort(key=lambda item: item['value'], reverse=True)
-    return [cabin_options, year_options, filename]
+    style['backgroundColor'] = 'white'
+    return [cabin_options, year_options, style]
 
 
 # need to work on updating and drawing the graph when buttons selected
