@@ -103,6 +103,8 @@ def layout():
                         ['Drag and Drop or ', html.A('Select File')]),
                     style={
                         'width': '100%',
+                        'margin': '30px',
+
                         'height': '60px',
                         'lineHeight': '60px',
                         'borderWidth': '1px',
@@ -136,6 +138,7 @@ app.layout = layout()
 )
 def update_output(contents, filename):
     style = {'width': '100%',
+             'margin': '30px',
              'height': '60px',
              'lineHeight': '60px',
              'borderWidth': '1px',
