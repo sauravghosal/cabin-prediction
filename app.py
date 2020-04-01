@@ -146,16 +146,10 @@ def update_output(contents, filename):
     if contents:
         try:
             data = contents.encode("utf8").split(b";base64,")[1]
-            with open('output.xlsx', 'wb') as fp:
+            with open('output1.xlsx', 'wb') as fp:
                 fp.write(base64.decodebytes(data))
-            df_main = parse_data('output.xlsx')
-            cabin_options = [{'label': i, 'value': i}
-                             for i in df_main['Cabin'].unique()]
-            year_options = [{'label': i, 'value': i}
-                            for i in df_main['Year'].unique()]
-            year_options.sort(key=lambda item: item['value'], reverse=True)
+            df_main = parse_data('output1.xlsx')
             style['backgroundColor'] = 'green'
-            return [cabin_options, year_options, style]
         # fallback
         except:
             df_main = parse_data()
@@ -167,13 +161,14 @@ def update_output(contents, filename):
             year_options.sort(key=lambda item: item['value'], reverse=True)
             style['backgroundColor'] = 'red'
             return [cabin_options, year_options, style]
+        with open('output.xlsx', 'wb') as fp:
+            fp.write(base64.decodebytes(data))
     df_main = parse_data()
     cabin_options = [{'label': i, 'value': i}
                      for i in df_main['Cabin'].unique()]
     year_options = [{'label': i, 'value': i}
                     for i in df_main['Year'].unique()]
     year_options.sort(key=lambda item: item['value'], reverse=True)
-    style['backgroundColor'] = 'white'
     return [cabin_options, year_options, style]
 
 
