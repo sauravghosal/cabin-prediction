@@ -15,10 +15,6 @@ app = dash.Dash()
 server = app.server
 
 
-colors = {"graphBackground": "#F5F5F5",
-          "background": "#ffffff", "text": "#000000"}
-
-
 def parse_data(name='output.xlsx'):
     sheets = pd.ExcelFile(name).book.sheets()
     data = []
@@ -33,9 +29,13 @@ def parse_data(name='output.xlsx'):
         df['date'] = pd.to_datetime(
             df.loc[:, 'date'], format="%Y_%m_%d", errors='coerce')
         df.dropna(inplace=True)
-        df['30day'] = df.iloc[:, 1].str[:29].str.count("1")
-        df['60day'] = df.iloc[:, 1].str[:59].str.count("1")
-        df['90day'] = df.iloc[:, 1].str[:89].str.count("1")
+        df['30day'] = df.iloc[:, 1].str[:29].str.count("1").fillna(0).map(int)
+        df['60day'] = df.iloc[:, 1].str[:59].str.count("1").fillna(0).map(int)
+        df['90day'] = df.iloc[:, 1].str[:89].str.count("1").fillna(0).map(int)
+        df['120day'] = df.iloc[:, 1].str[:119].str.count(
+            "1").fillna(0).astype('int32')
+        df['180day'] = df.iloc[:, 1].str[:179].str.count(
+            "1").fillna(0).astype('int32')
         df['Cabin'] = sheet.name
         df['Year'] = df['date'].dt.year
         # move all dates to year 2000 to allow for graph overlay
@@ -46,13 +46,17 @@ def parse_data(name='output.xlsx'):
 
 def layout():
     df_main = parse_data()
-    lookahead_options = [{'label': '30day', 'value': '30day'}, {
-        'label': '60day', 'value': '60day'}, {'label': '90day', 'value': '90day'}]
+    lookahead_options = [{'label': '30day', 'value': '30day'},
+                         {'label': '60day', 'value': '60day'},
+                         {'label': '90day', 'value': '90day'},
+                         {'label': '120day', 'value': '120day'},
+                         {'label': '180day', 'value': '180day'}]
     cabin_options = [{'label': i, 'value': i}
                      for i in df_main['Cabin'].unique()]
     year_options = [{'label': i, 'value': i}
                     for i in df_main['Year'].unique()]
     year_options.sort(key=lambda item: item['value'], reverse=True)
+    print(sorted(list(df_main['Year'].unique()), reverse=True)[:1])
     return html.Div([
         html.Div(
             className="page-content",
@@ -84,10 +88,13 @@ def layout():
                         ),
                         dcc.Checklist(
                             options=year_options,
-                            value=list(df_main['Year'].unique())[:1],
+                            value=sorted(
+                                list(df_main['Year'].unique()), reverse=True)[:1],
                             id='select-year',
                             className='select-year',
                         ),
+                        html.Button('Redraw Graph', id='button'),
+
 
                     ],
                     style={
@@ -104,7 +111,6 @@ def layout():
                     style={
                         'width': '100%',
                         'margin': '30px',
-
                         'height': '60px',
                         'lineHeight': '60px',
                         'borderWidth': '1px',
@@ -131,6 +137,7 @@ app.layout = layout()
         Output('select-cabin', 'options'),
         Output('select-year', 'options'),
         Output('upload', 'style'),
+
     ],
     [Input('upload', 'contents'), Input('upload', 'filename')],
 
@@ -175,14 +182,12 @@ def update_output(contents, filename):
     return [cabin_options, year_options, style]
 
 
-# need to work on updating and drawing the graph when buttons selected
-# how do i display information?
 @app.callback(
     Output('plot', 'figure'),
     [Input('select-year', 'value'), Input('select-lookahead',
-                                          'value'), Input('select-cabin', 'value')]
+                                          'value'), Input('select-cabin', 'value'), Input('button', 'n_clicks')]
 )
-def update_plot(years, lookAhead, cabins):
+def update_plot(years, lookAhead, cabins, n_clicks):
     data = []
     df_main = parse_data()
     for cabin in cabins:
@@ -190,23 +195,25 @@ def update_plot(years, lookAhead, cabins):
             for day in lookAhead:
                 data.append(
                     go.Scatter(
-                        x=df_main[(df_main['Year'] == int(year)) & (df_main['Cabin'] == cabin)
+                        x=df_main[(df_main['Year'] == int(year)) &
+                                  (df_main['Cabin'] == cabin)
                                   ]['date'],
-                        y=df_main[(df_main['Year'] == int(year)) & (df_main['Cabin'] == cabin)
-                                  ][day],
-                        name=str(day) + ' ' +
-                        str(cabin) + ' ' + str(year),
+                        y=df_main[(df_main['Year'] == int(year)) &
+                                  (df_main['Cabin'] == cabin)][day].astype('int'),
+                        name=str(day) + '-' + str(year) +
+                        '-' + str(cabin)[0:20],
                         line=dict(width=2),
-                        hoverinfo='y',
+                        hoverinfo='y+x',
+                        mode='lines+markers'
                     )
                 )
     layout = go.Layout(
         title='Cabin Rental Prediction Software', hovermode='closest')
     fig = go.Figure(data=data, layout=layout)
-    fig.update_layout(xaxis_tickformat='%d %B', autosize=True,  width=1500,
+    fig.update_layout(xaxis_tickformat='%d %b', autosize=True,  width=1500,
                       height=450,  xaxis_title="Dates",
                       yaxis_title="Bookings",)
-    fig.update_yaxes(hoverformat=".2f", ticksuffix=" days")
+    fig.update_yaxes(hoverformat="@x{int}", ticksuffix=" days")
     return fig
 
 
