@@ -1,3 +1,4 @@
+import numpy as np
 import plotly.graph_objs as go
 import dash
 from dash.dependencies import Input, Output
@@ -6,10 +7,17 @@ import dash_html_components as html
 import os
 import base64
 import math
-
-
+from cabin_analytics import clean_cabin_info, strbmap_diff, execute_cleanup
 import pandas as pd
-import numpy as np
+
+my_color = [['#10D6CE', '#103CD6', '#3810D6'],
+            ['#DC0209', '#AF195B', '#9F19AF'],
+            ['#08764C', '#09D208', '#77D208']]
+
+
+global_data = "This is global data"
+column_names = []
+df_main = pd.DataFrame(columns=column_names)
 
 app = dash.Dash()
 server = app.server
@@ -17,25 +25,34 @@ server = app.server
 
 def parse_data(name='output.xlsx'):
     sheets = pd.ExcelFile(name).book.sheets()
+    print("Parsing data .... ")
     data = []
     for i, sheet in enumerate(sheets):
         if sheet.visibility:
             continue
 
         df = pd.read_excel(name, sheet_name=sheet.name,)
+
+        # Remove bad data here ..
+        clean_cabin_info(df)
+        execute_cleanup(df)
+
         df = df.drop(columns=df.columns.values[0])
         if df.empty:
             continue
         df['date'] = pd.to_datetime(
-            df.loc[:, 'date'], format="%Y_%m_%d", errors='coerce')
+            df.index, format="%Y_%m_%d", errors='coerce')
         df.dropna(inplace=True)
-        df['30day'] = df.iloc[:, 1].str[:29].str.count("1").fillna(0).map(int)
-        df['60day'] = df.iloc[:, 1].str[:59].str.count("1").fillna(0).map(int)
-        df['90day'] = df.iloc[:, 1].str[:89].str.count("1").fillna(0).map(int)
-        df['120day'] = df.iloc[:, 1].str[:119].str.count(
-            "1").fillna(0).astype('int32')
-        df['180day'] = df.iloc[:, 1].str[:179].str.count(
-            "1").fillna(0).astype('int32')
+        df['30day'] = df.loc[:, "occupancybitmap"].str[:30].str.count(
+            '1').fillna(0).map(int)
+        df['60day'] = df.loc[:, "occupancybitmap"].str[:60].str.count(
+            "1").fillna(0).map(int)
+        df['90day'] = df.loc[:, "occupancybitmap"].str[:90].str.count(
+            "1").fillna(0).map(int)
+        df['120day'] = df.loc[:, "occupancybitmap"].str[:120].str.count(
+            "1").fillna(0).map(int)
+        df['180day'] = df.loc[:, "occupancybitmap"].str[:180].str.count(
+            "1").fillna(0).map(int)
         df['Cabin'] = sheet.name
         df['Year'] = df['date'].dt.year
         # move all dates to year 2000 to allow for graph overlay
@@ -56,12 +73,11 @@ def layout():
     year_options = [{'label': i, 'value': i}
                     for i in df_main['Year'].unique()]
     year_options.sort(key=lambda item: item['value'], reverse=True)
-    print(sorted(list(df_main['Year'].unique()), reverse=True)[:1])
     return html.Div([
         html.Div(
             className="page-content",
             children=[
-                html.H1("Ghosal RE Cabin Rental Prediction Software"),
+                html.H1("Ghosal RE Cabin Rental Predictor"),
 
                 html.Div(
                     className="graph-container",
@@ -88,13 +104,11 @@ def layout():
                         ),
                         dcc.Checklist(
                             options=year_options,
-                            value=sorted(
-                                list(df_main['Year'].unique()), reverse=True)[:1],
+                            value=sorted(list(df_main['Year'].unique()),
+                                         reverse=True)[:1],
                             id='select-year',
                             className='select-year',
                         ),
-                        html.Button('Redraw Graph', id='button'),
-
 
                     ],
                     style={
@@ -137,7 +151,6 @@ app.layout = layout()
         Output('select-cabin', 'options'),
         Output('select-year', 'options'),
         Output('upload', 'style'),
-
     ],
     [Input('upload', 'contents'), Input('upload', 'filename')],
 
@@ -182,16 +195,19 @@ def update_output(contents, filename):
     return [cabin_options, year_options, style]
 
 
+# need to work on updating and drawing the graph when buttons selected
+# how do i display information?
 @app.callback(
     Output('plot', 'figure'),
     [Input('select-year', 'value'), Input('select-lookahead',
-                                          'value'), Input('select-cabin', 'value'), Input('button', 'n_clicks')]
+                                          'value'), Input('select-cabin', 'value')]
 )
-def update_plot(years, lookAhead, cabins, n_clicks):
+def update_plot(years, lookAhead, cabins):
+    #print (global_data)
     data = []
-    df_main = parse_data()
-    for cabin in cabins:
-        for year in years:
+    #df_main = parse_data()
+    for a, cabin in enumerate(cabins):
+        for b, year in enumerate(years):
             for day in lookAhead:
                 data.append(
                     go.Scatter(
@@ -199,16 +215,16 @@ def update_plot(years, lookAhead, cabins, n_clicks):
                                   (df_main['Cabin'] == cabin)
                                   ]['date'],
                         y=df_main[(df_main['Year'] == int(year)) &
-                                  (df_main['Cabin'] == cabin)][day].astype('int'),
-                        name=str(day) + '-' + str(year) +
-                        '-' + str(cabin)[0:20],
+                                  (df_main['Cabin'] == cabin)][day],
+                        name=str(day) + '-' + str(year)+'-'+str(cabin)[0:20],
                         line=dict(width=2),
                         hoverinfo='y+x',
-                        mode='lines+markers'
+                        mode='lines+markers',
+                        # marker=dict(color=my_color[(a%3)][(b%3)])
                     )
                 )
     layout = go.Layout(
-        title='Cabin Rental Prediction Software', hovermode='closest')
+        title='Cabin Occupancy Predictor', hovermode='closest')
     fig = go.Figure(data=data, layout=layout)
     fig.update_layout(xaxis_tickformat='%d %b', autosize=True,  width=1500,
                       height=450,  xaxis_title="Dates",
@@ -218,4 +234,5 @@ def update_plot(years, lookAhead, cabins, n_clicks):
 
 
 if __name__ == '__main__':
+    df_main = parse_data()
     app.run_server(debug=True)
