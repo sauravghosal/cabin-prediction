@@ -26,13 +26,13 @@ server = app.server
 
 def parse_data(name='output.xlsx'):
     sheets = pd.ExcelFile(name).book.sheets()
-    print ("Parsing data .... ")
-    #traceback.print_stack()
+    print("Parsing data .... ")
     data = []
     for i, sheet in enumerate(sheets):
         if sheet.visibility:
             continue
 
+        print("Reading cabins name = {0.name}".format(sheet))
         df = pd.read_excel(name, sheet_name=sheet.name,)
 
         ### Remove bad data here ..
@@ -154,7 +154,7 @@ app.layout = layout()
     [Input('upload', 'contents'), Input('upload', 'filename')],
 )
 def update_output(contents, filename):
-    print ("Inside Update Output", filename)
+    print("Inside Update Output", filename)
 
     style = {'width': '100%',
              'margin': '30px',
@@ -210,7 +210,7 @@ def update_plot(years, lookAhead, cabins, clickData, relayout_Data):
     if (relayout_Data):
         my_events = relayout_Data.keys()
         if 'xaxis.range[0]' in my_events:
-            #print ('Inside panout or lasso select ... ')
+            #print('Inside panout or lasso select ... ')
             startdate = datetime.datetime.strptime(relayout_Data['xaxis.range[0]'].split(' ')[0], "%Y-%m-%d")
             enddate = datetime.datetime.strptime(relayout_Data['xaxis.range[1]'].split(' ')[0], "%Y-%m-%d")
             filt = ((df_main['date'] >= startdate) & (df_main['date'] <= enddate))
