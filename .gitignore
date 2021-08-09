@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 .env
 venv
 __pycache__
 checkOccupancy.log
+=======
+venv
+*.pyc
+.DS_Store
+.env
+>>>>>>> f23332e3d0d416f97e55da1f3ab4186502d30855
