@@ -1,11 +1,9 @@
-<<<<<<< HEAD
-.env
-venv
+ec2/__pycache__
+ec2/client/node_modules 
+ec2/server/static/
+lambda/include
+*.zip
+lambda-layer/
 __pycache__
-checkOccupancy.log
-=======
-venv
-*.pyc
-.DS_Store
-.env
->>>>>>> f23332e3d0d416f97e55da1f3ab4186502d30855
+*.log
+ec2/.env
