@@ -1,0 +1,5 @@
+ec2/__pycache__
+ec2/client/node_modules
+__pycache__
+*.log
+ec2/.env
