@@ -6,7 +6,7 @@ lambda/.aws-sam
 lambda-layer/
 __pycache__
 *.log
-ec2/.env
+**/.env
 .vscode
 /lambda/env.json
 **/.DS_Store
