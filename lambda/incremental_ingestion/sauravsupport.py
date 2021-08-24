@@ -5,16 +5,18 @@ import os
 import platform
 import inspect
 import numpy as np
+from pathlib import Path
 from appsupport import getCorrectiveOffsets
+
 
 if (platform.node() == 'Anjan-New-Asus-Laptop'):
     Dir = r'C:\Users\aghos\Dropbox\GhosalRE\Tennessee_Scrape_Data_New'
     desktop = 'C:\\Users\\aghos\\OneDrive\\desktop\\'
     fileName = r'C:\Users\aghos\OneDrive\Desktop\output.xlsx'
 else:
-    NDName = os.getcwd().join('scrape')
+    Dir = str((Path.cwd()).joinpath('output'))
+    fileName = str((Path.cwd()).joinpath('output.xlsx'))
     desktop = ''
-    fileName = os.getcwd().join('output.xlsx')
 
 
 def getLastFilename(number=1):

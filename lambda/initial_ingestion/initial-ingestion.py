@@ -1,16 +1,13 @@
-from datetime import date, datetime
+from datetime import date
 from random import randint
-import boto3
 import pandas as pd
 import logging
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, DATETIME, VARBINARY
+from sqlalchemy import create_engine, DATETIME, NVARCHAR
 
 # change to aws lambda environment variables
 load_dotenv()
-
-s3 = boto3.resource('s3')
 
 
 logging.basicConfig(
@@ -19,10 +16,9 @@ logging.basicConfig(
 db_host = os.getenv('DB_DATABASE')
 db_user = os.getenv('DB_USER')
 db_password = os.getenv('DB_PASSWORD')
-db_name = "Cabins"
+db_name = "cabins"
 
 
-# TODO: move this into aws lambda that is triggered when file is uploaded to s3?
 # TODO: clean up SQL queries with Session/Transaction ORM from SQLAlchemy?
 # https://docs.sqlalchemy.org/en/14/core/tutorial.html
 
@@ -90,17 +86,14 @@ def ingest_data(bits, table_name):
 
 
 def handler(event, context):
-    create_database(db_name)
-    # fetch objects from s3 bucket
-    # ingest the excel file
-    xls = pd.ExcelFile('test_output_2.xlsx')
-    for cabin in xls.sheet_names:
-        df = pd.read_excel('test_output_2.xlsx', sheet_name=cabin)
-        df['date'] = pd.to_datetime(
-            arg=df['date'], format="%Y_%m_%d", errors='ignore')
-        df = df.iloc[:, 1:]
-        df.loc[:, 'occupancy'] = df.loc[:,
-                                        'occupancy'].str.encode(encoding='utf-8')
-        df.to_sql(cabin, engine, index=False,
-                  schema=db_name, if_exists="replace", dtype={'date': DATETIME, 'occupancy': VARBINARY(180)})
+    xls = pd.ExcelFile('output.xlsx')
+    for cabin in xls.sheet_names[1:]:
+        df = xls.parse(sheet_name=cabin)
+        df['Date'] = pd.to_datetime(
+            arg=df['Date'], format="%Y_%m_%d", errors='ignore')
+        df.drop(df.columns[[1, 2, 3, 4, 5, 6, 7]], axis=1, inplace=True)
+        print(df)
+        df.to_sql(cabin.strip(), engine, index=False,
+                  schema=db_name, if_exists="replace", dtype={'date': DATETIME, 'occupancy': NVARCHAR(180)})
     engine.dispose()
+    

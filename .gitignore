@@ -8,3 +8,5 @@ __pycache__
 *.log
 ec2/.env
 .vscode
+/lambda/env.json
+**/.DS_Store

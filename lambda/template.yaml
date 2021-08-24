@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sql-ingestion
+
+  Sample SAM Template for sql-ingestion
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 60
+
+Resources:
+  IncrementalIngestionFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: incremental_ingestion/
+      Handler: readoutlook.lambda_handler
+      Runtime: python3.7
+      Environment:
+        Variables:
+          DB_DATABASE: test-db.c41grk8eakd2.us-east-2.rds.amazonaws.com
+          DB_USER: admin
+          DB_PASSWORD: password
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  SQLIngestionFunction:
+    Description: "Incremental Ingestion Lambda Function ARN"
+    Value: !GetAtt IncrementalIngestionFunction.Arn
+  SQLIngestionFunctionIamRole:
+    Description: "Implicit IAM Role created for the Incremental Ingestion function"
+    Value: !GetAtt IncrementalIngestionFunction.Arn
