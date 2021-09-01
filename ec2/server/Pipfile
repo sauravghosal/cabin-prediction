@@ -13,6 +13,7 @@ pymysql = "*"
 requests = "*"
 colorama = "*"
 pandas = "==0.25.3"
+importlib-metadata = "*"
 
 [dev-packages]
 autopep8 = "*"
