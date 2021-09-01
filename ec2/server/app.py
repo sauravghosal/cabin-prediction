@@ -47,9 +47,21 @@ def query_occupancy_delta_by_date_range(table_name, start_date, end_date):
     try:
         conn = engine.connect()
         print(f'Finding occupancy data between {start_date} and {end_date} for cabin {table_name}')
-        return conn.execute(f"""
-            SELECT DATE, BMAP_DIFF FROM `{table_name}` WHERE DATE BETWEEN '{start_date:%Y-%m-%d}' AND '{end_date:%Y-%m-%d} ORDER BY DATE ASC'
+        if start_date and end_date:
+            return conn.execute(f"""
+            SELECT DATE, BMAP_DIFF FROM `{table_name}` WHERE DATE BETWEEN '{start_date:%Y-%m-%d}' AND IFNULL('{end_date:%Y-%m-%d}', now()) ORDER BY DATE ASC
             """)
+        elif start_date:
+            return conn.execute(f"""
+            SELECT DATE, BMAP_DIFF FROM `{table_name}` WHERE DATE >= '{start_date:%Y-%m-%d}' ORDER BY DATE ASC
+            """)
+        elif end_date:
+            return conn.execute(f"""
+            SELECT DATE, BMAP_DIFF FROM `{table_name}` WHERE DATE <= '{end_date:%Y-%m-%d}' ORDER BY DATE ASC
+            """)
+        return conn.execute(f"""
+            SELECT DATE, BMAP_DIFF FROM `{table_name}` ORDER BY DATE ASC
+        """)
     except (Exception) as error:
         app.logger.error(error)
     finally:
@@ -93,7 +105,6 @@ def list_all_cabins():
     return dict(cabins=cabins)
 
 # TODO: query string param validation on start_date, end_date, and cabin
-# 
 @app.route('/api/occupancy-delta', methods=["GET"])
 def query_cabin_occupancy_delta_date_range():
     start_date, end_date, cabin_name = request.args.get(
