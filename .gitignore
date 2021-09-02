@@ -10,3 +10,4 @@ __pycache__
 .vscode
 /lambda/env.json
 **/.DS_Store
+*.pem
