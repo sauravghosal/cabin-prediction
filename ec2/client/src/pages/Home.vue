@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <div class="user-input">
-      <p>Select a cabin:</p>
+      <label for="cabin-selection">Select a cabin</label>
       <select
         v-model="selectedCabin"
         class="cabin-selection"
@@ -11,18 +11,18 @@
           {{ cabin.text }}
         </option>
       </select>
-      <v-date-picker class="inline-block h-full" v-model="date">
-        <template v-slot="{ inputValue, togglePopover }">
-          <div class="date-selection">
-            <button class="" @click="togglePopover()">
-              <font-awesome-icon icon="calendar-alt"></font-awesome-icon>
-            </button>
-            <input
-              :value="inputValue"
-              class="bg-white text-gray-700 w-full py-1 px-2 appearance-none border rounded-r focus:outline-none focus:border-blue-500"
-              readonly
-            />
-          </div>
+      <label class="date-label" for="date">Select Date</label>
+      <v-date-picker
+        v-model="date"
+        :update-on-input="false"
+        class="date-picker"
+      >
+        <template v-slot="{ inputValue, inputEvents }">
+          <input
+            class="date-selection"
+            :value="inputValue"
+            v-on="inputEvents"
+          />
         </template>
       </v-date-picker>
     </div>
@@ -158,7 +158,8 @@ export default {
   margin: 5px 0px 3px 5px;
 }
 
-.date-selection {
-  margin-left: 10px;
+.date-label {
+  margin-left: 20px;
+  margin-right: 5px;
 }
 </style>
