@@ -1,11 +1,12 @@
 {
-  "name": "client",
+  "name": "GhosalRE",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "watch": "watch 'npm run build' ./src"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.36",
@@ -19,7 +20,8 @@
     "v-calendar": "^3.0.0-alpha.5",
     "vue": "^3.2.4",
     "vue-easy-spinner": "^0.1.0",
-    "vue-loader": "^16.5.0"
+    "vue-loader": "^16.5.0",
+    "watch": "^1.0.2"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "~4.5.0",
