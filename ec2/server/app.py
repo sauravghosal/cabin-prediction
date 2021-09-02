@@ -14,7 +14,7 @@ app.logger.setLevel(logging.INFO)
 
 
 logging.basicConfig(filename=Path(__file__).parent.joinpath(
-    'debug.log'), level=logging.DEBUG, force=True)
+    'debug.log'), level=logging.DEBUG)
 load_dotenv(dotenv_path=Path(__file__).parent.joinpath(
     '.env'))
 
