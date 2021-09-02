@@ -1,11 +1,13 @@
 <template>
   <v-calendar
+    v-if="data"
     :from-date="date"
     :attributes="attrs"
     :columns="$screens({ default: 1, lg: 6 })"
     :rows="$screens({ default: 1, lg: 2 })"
     :is-expanded="$screens({ default: true, lg: false })"
   />
+  <p v-if="!data">No Data Available</p>
 </template>
 
 <script>

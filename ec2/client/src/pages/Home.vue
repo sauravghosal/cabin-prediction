@@ -50,38 +50,56 @@ export default {
     };
   },
   async created() {
-    const cabins = await this.getAllCabins();
-    this.cabins = cabins["cabins"].map((cabin) => {
-      return { text: cabin, value: cabin };
-    });
-    this.selectedCabin = cabins["cabins"][0];
-    const cabinOccupancyDiff = await this.getOccupancyDiff(this.selectedCabin);
-    this.loading = false;
-    this.calendarData =
-      cabinOccupancyDiff["occupancy"][this.getFormattedDate(this.date)];
+    try {
+      const cabins = await this.getAllCabins();
+      this.cabins = cabins["cabins"].map((cabin) => {
+        return { text: cabin, value: cabin };
+      });
+      this.selectedCabin = cabins["cabins"][0];
+      const cabinOccupancyDiff = await this.getOccupancyDiff(
+        this.selectedCabin
+      );
+      this.calendarData =
+        cabinOccupancyDiff["occupancy"][this.getFormattedDate(this.date)];
+      this.loading = false;
+    } catch (err) {
+      console.error(err);
+      this.loading = false;
+    }
   },
 
   // adjusting the displayed calendar based on user input
+  // TODO: refactor code -> add it into function?
   watch: {
     selectedCabin: async function(cabinName) {
-      this.loading = true;
-      const cabinOccupancyDiff = await this.getOccupancyDiff(
-        cabinName,
-        this.date
-      );
-      this.loading = false;
-      this.calendarData =
-        cabinOccupancyDiff["occupancy"][this.getFormattedDate(this.date)];
+      try {
+        this.loading = true;
+        const cabinOccupancyDiff = await this.getOccupancyDiff(
+          cabinName,
+          this.date
+        );
+        this.calendarData =
+          cabinOccupancyDiff["occupancy"][this.getFormattedDate(this.date)];
+        this.loading = false;
+      } catch (err) {
+        console.error(err);
+        setTimeout(() => (this.loading = false), 1000);
+      }
     },
     date: async function(newDate) {
-      this.loading = true;
-      const cabinOccupancyDiff = await this.getOccupancyDiff(
-        this.selectedCabin,
-        newDate
-      );
-      this.loading = false;
-      this.calendarData =
-        cabinOccupancyDiff["occupancy"][this.getFormattedDate(this.date)];
+      try {
+        this.loading = true;
+        const cabinOccupancyDiff = await this.getOccupancyDiff(
+          this.selectedCabin,
+          newDate
+        );
+        this.loading = false;
+        this.calendarData =
+          cabinOccupancyDiff["occupancy"][this.getFormattedDate(this.date)];
+      } catch (err) {
+        console.error(err);
+        setTimeout(() => (this.loading = false), 1000);
+      }
     },
   },
   methods: {
