@@ -2,10 +2,8 @@ from flask import Flask, request, render_template
 from datetime import datetime
 import os
 from sqlalchemy import create_engine
-from appsupport import updateCabinColumns
 from dotenv import load_dotenv
 from pathlib import Path
-import pandas as pd
 import logging
 import re
 import atexit
