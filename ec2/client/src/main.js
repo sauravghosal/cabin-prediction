@@ -1,11 +1,18 @@
 import { createApp } from "vue";
 import App from "./App.vue";
-import BalmUI from "balm-ui"; // Official Google Material Components
-import BalmUIPlus from "balm-ui-plus"; // BalmJS Team Material Components
-import "balm-ui-css";
+import VCalendar from "v-calendar";
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { library } from "@fortawesome/fontawesome-svg-core";
+import { faCalendarAlt } from "@fortawesome/free-solid-svg-icons";
+import easySpinner from "vue-easy-spinner";
+
+library.add(faCalendarAlt);
 
 const app = createApp(App);
-app.use(BalmUI);
-app.use(BalmUIPlus);
+app.use(VCalendar, {});
+app.component("font-awesome-icon", FontAwesomeIcon);
+app.use(easySpinner, {
+  prefix: "easy",
+});
 
 app.mount("#app");
