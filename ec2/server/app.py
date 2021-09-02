@@ -42,6 +42,7 @@ def query_occupancy_by_date_range(table_name, start_date, end_date):
     finally:
         conn.close()
         engine.dispose()
+
         
 def query_occupancy_delta_by_date_range(table_name, start_date, end_date):
     try:
@@ -49,7 +50,7 @@ def query_occupancy_delta_by_date_range(table_name, start_date, end_date):
         print(f'Finding occupancy data between {start_date} and {end_date} for cabin {table_name}')
         if start_date and end_date:
             return conn.execute(f"""
-            SELECT DATE, BMAP_DIFF FROM `{table_name}` WHERE DATE BETWEEN '{start_date:%Y-%m-%d}' AND IFNULL('{end_date:%Y-%m-%d}', now()) ORDER BY DATE ASC
+            SELECT DATE, BMAP_DIFF FROM `{table_name}` WHERE DATE BETWEEN '{start_date:%Y-%m-%d}' AND '{end_date:%Y-%m-%d}' ORDER BY DATE ASC
             """)
         elif start_date:
             return conn.execute(f"""
@@ -101,7 +102,12 @@ def home():
 def list_all_cabins():
     cabins = []
     for cabin in query_all_cabins():
-        cabins.append(re.search('([\'\"](.*)[\'\"])', str(cabin)).group(1))
+        # edge casees for apostrophes in cabin name
+        try: 
+            cabins.append(re.search("\'(.+?)\'", str(cabin)).group(1))
+        except: 
+            cabins.append(re.search("\"(.+?)\"", str(cabin)).group(1))
+    print(cabins)
     return dict(cabins=cabins)
 
 # TODO: query string param validation on start_date, end_date, and cabin
