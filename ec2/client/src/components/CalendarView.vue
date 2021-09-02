@@ -3,7 +3,7 @@
     v-if="data"
     :from-date="date"
     :attributes="attrs"
-    :columns="$screens({ default: 1, md: 2, lg: 5 })"
+    :columns="$screens({ default: 1, md: 2, lg: 4, xl: 5 })"
     :rows="$screens({ default: 1, md: 2 })"
     :is-expanded="$screens({ default: true, lg: false })"
   />
@@ -28,8 +28,14 @@ export default {
     attrs: function() {
       return this.buildDatasets(this.data, this.startDate);
     },
+    // starting the calendar where the data begins
     date: function() {
-      return this.startDate && new Date(this.startDate.getFullYear(), 0, 1);
+      if (this.data) {
+        const d = new Date(this.startDate.getTime());
+        d.setDate(this.startDate.getDate() - this.data.length);
+        return d;
+      }
+      return this.startDate;
     },
   },
   methods: {
