@@ -1,5 +1,6 @@
 <template>
   <v-calendar
+    :from-date="date"
     :attributes="attrs"
     :columns="$screens({ default: 1, lg: 6 })"
     :rows="$screens({ default: 1, lg: 2 })"
@@ -12,28 +13,30 @@ export default {
   name: "CalendarView",
   props: {
     startDate: {
-      type: Date,
+      type: Date || null,
       required: true,
     },
     data: {
-      type: Array,
+      type: String,
       required: true,
     },
   },
-  data() {
-    return {
-      attrs: this.buildDatasets(),
-    };
+  // re-renders the calendar view on prop change
+  computed: {
+    attrs: function() {
+      return this.buildDatasets(this.data, this.startDate);
+    },
+    date: function() {
+      return this.startDate && new Date(this.startDate.getFullYear(), 0, 1);
+    },
   },
   methods: {
-    buildDatasets() {
+    buildDatasets(data, startDate) {
       const attrs = [
         { key: "previously booked", highlight: "blue", dates: [] },
         { key: "new booking", highlight: "green", dates: [] },
         { key: "cancelation", highlight: "red", dates: [] },
       ];
-      const data = this.data;
-      const startDate = this.startDate;
       for (let i = 0; i < data.length; i++) {
         const d = new Date(startDate.getTime());
         switch (data[i]) {
