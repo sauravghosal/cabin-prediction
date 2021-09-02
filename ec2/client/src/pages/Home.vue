@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <h2>GhosalRE Occupancy Data Visualization</h2>
     <div class="user-input">
       <label for="cabin-selection">Select a cabin</label>
       <select
@@ -138,12 +139,9 @@ export default {
 .container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  padding: 20px;
-}
-
-.calendar {
-  flex: 1;
+  align-items: center;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 .user-input {
@@ -151,11 +149,23 @@ export default {
   align-items: center;
   padding: 2px;
   margin: 10px;
-  width: 100%;
 }
 
-.cabin-selection {
+@media screen and (max-width: 750px) {
+  .user-input {
+    flex-direction: column;
+  }
+  .cabin-selection,
+  .date-picker,
+  .date-selection {
+    width: 100%;
+  }
+}
+
+.cabin-selection,
+.date-picker {
   margin: 5px 0px 3px 5px;
+  min-width: 100px;
 }
 
 .date-label {
