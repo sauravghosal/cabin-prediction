@@ -1,36 +1,51 @@
 <template>
-  <div class="container">
-    <h2>GhosalRE Occupancy Data Visualization</h2>
-    <div class="user-input">
-      <label for="cabin-selection">Select a cabin</label>
-      <select
-        v-model="selectedCabin"
-        class="cabin-selection"
-        :value="selectedCabin"
-      >
-        <option v-for="cabin in cabins" :value="cabin.value" :key="cabin.value">
-          {{ cabin.text }}
-        </option>
-      </select>
-      <label class="date-label" for="date">Select Date</label>
-      <v-date-picker
-        v-model="date"
-        :update-on-input="false"
-        class="date-picker"
-      >
-        <template v-slot="{ inputValue, inputEvents }">
-          <input
-            class="date-selection"
-            :value="inputValue"
-            v-on="inputEvents"
-          />
-        </template>
-      </v-date-picker>
+  <div class="content">
+    <div class="nav">
+      <h2>GhosalRE Data Vis</h2>
     </div>
-    <div class="calendar">
-      <easy-spinner v-if="loading" color="#2196f3" size="75" type="circular" />
-      <calendar-view v-if="!loading" :data="calendarData" :startDate="date" />
+    <div class="occupancy-deltas">
+      <h3>Occupancy Deltas</h3>
+      <div class="user-input">
+        <label for="cabin-selection">Select a cabin</label>
+        <select
+          v-model="selectedCabin"
+          class="cabin-selection"
+          :value="selectedCabin"
+        >
+          <option
+            v-for="cabin in cabins"
+            :value="cabin.value"
+            :key="cabin.value"
+          >
+            {{ cabin.text }}
+          </option>
+        </select>
+        <label class="date-label" for="date">Select Date</label>
+        <v-date-picker
+          v-model="date"
+          :update-on-input="false"
+          class="date-picker"
+        >
+          <template v-slot="{ inputValue, inputEvents }">
+            <input
+              class="date-selection"
+              :value="inputValue"
+              v-on="inputEvents"
+            />
+          </template>
+        </v-date-picker>
+      </div>
+      <div class="calendar">
+        <easy-spinner
+          v-if="loading"
+          color="#2196f3"
+          size="75"
+          type="circular"
+        />
+        <calendar-view v-if="!loading" :data="calendarData" :startDate="date" />
+      </div>
     </div>
+    <div class="occupancy"></div>
   </div>
 </template>
 
@@ -50,7 +65,7 @@ export default {
       cabins: [],
     };
   },
-  async created() {
+  async mounted() {
     try {
       const cabins = await this.getAllCabins();
       this.cabins = cabins["cabins"].map((cabin) => {
@@ -136,6 +151,25 @@ export default {
 </script>
 
 <style scoped>
+.content {
+  width: 100%;
+  margin: 0;
+}
+.nav {
+  background-color: #333;
+  color: white;
+  padding: 10px;
+  display: flex;
+}
+
+.nav h2 {
+  margin: 0 0 0 5px;
+}
+
+.nav h2:hover {
+  cursor: pointer;
+}
+
 .container {
   display: flex;
   flex-direction: column;
@@ -147,6 +181,7 @@ export default {
 .user-input {
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 2px;
   margin: 10px;
 }
