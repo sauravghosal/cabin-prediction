@@ -1,11 +1,11 @@
 <template>
   <v-calendar
     v-if="data"
-    :from-date="date"
+    :from-date="startDate"
     :attributes="attrs"
     :columns="$screens({ default: 1, md: 2, lg: 4, xl: 5 })"
     :rows="$screens({ default: 1, md: 2 })"
-    :is-expanded="$screens({ default: true, lg: false })"
+    :is-expanded="$screens({ default: true, md: false })"
   />
   <p v-if="!data">No Data Available</p>
 </template>
@@ -28,15 +28,6 @@ export default {
     attrs: function() {
       return this.buildDatasets(this.data, this.startDate);
     },
-    // starting the calendar where the data begins
-    date: function() {
-      if (this.data) {
-        const d = new Date(this.startDate.getTime());
-        d.setDate(this.startDate.getDate() - this.data.length);
-        return d;
-      }
-      return this.startDate;
-    },
   },
   methods: {
     buildDatasets(data, startDate) {
@@ -49,19 +40,13 @@ export default {
         const d = new Date(startDate.getTime());
         switch (data[i]) {
           case "1":
-            attrs[0].dates.push(
-              new Date(d.setDate(startDate.getDate() - (data.length - i - 1)))
-            );
+            attrs[0].dates.push(new Date(d.setDate(startDate.getDate() + i)));
             break;
           case "B":
-            attrs[1].dates.push(
-              new Date(d.setDate(startDate.getDate() - (data.length - i - 1)))
-            );
+            attrs[1].dates.push(new Date(d.setDate(startDate.getDate() + i)));
             break;
           case "C":
-            attrs[2].dates.push(
-              new Date(d.setDate(startDate.getDate() - (data.length - i - 1)))
-            );
+            attrs[2].dates.push(new Date(d.setDate(startDate.getDate() + i)));
         }
       }
       return attrs;
