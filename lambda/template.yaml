@@ -11,6 +11,19 @@ Globals:
     Timeout: 60
 
 Resources:
+  InitialIngestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: initial_ingestion/
+      Handler: initial.handler
+      Runtime: python3.7
+      Environment:
+        Variables:
+          DB_DATABASE: test-db.c41grk8eakd2.us-east-2.rds.amazonaws.com
+          DB_USER: admin
+          DB_PASSWORD: password
+      Role: !GetAtt IngestionFunctionRole.Arn
+
   IncrementalIngestionFunction:
     Type: AWS::Serverless::Function
     Properties:
