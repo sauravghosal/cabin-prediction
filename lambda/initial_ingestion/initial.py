@@ -107,15 +107,14 @@ def handler(event, context):
             df.drop(df.columns[[1, 2, 3, 4, 5, 6, 7]], axis=1, inplace=True)
             updateCabinColumns(cabin_name=cabin, cabin_df=df)
             df.drop(['Date', 'dow', 'C', 'B', 'tot_count', 'occ_delta'], axis=1, inplace=True)
-            print("Ingesting cabin {} into database".format(cabin))
-            # df.to_sql(cabin.strip(), engine, index=True,
-            #         schema=db_name, if_exists="replace", dtype={'date': DATETIME, 'occupancy': NVARCHAR(180), 'occ_count': SMALLINT, 'bmap_diff': NVARCHAR(180)})
-            return {
-                "statusCode": 200,
-                "body": json.dumps({
-                "message": "ingestion complete!",
-                })
-            }
+            df.to_sql(cabin.strip(), engine, index=True,
+                    schema=db_name, if_exists="replace", dtype={'date': DATETIME, 'occupancy': NVARCHAR(180), 'occ_count': SMALLINT, 'bmap_diff': NVARCHAR(180)})
+        return {
+            "statusCode": 200,
+            "body": json.dumps({
+            "message": "ingestion complete!",
+            })
+        }
     except Exception as err:
         raise err
     
