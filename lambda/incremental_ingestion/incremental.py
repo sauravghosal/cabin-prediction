@@ -12,12 +12,19 @@ from cabinsofinterest import CabinsOfInterest
 from appsupport import fixAllOccupancyBitmaps, fixOccupancyBitmap
 from sqlalchemy import create_engine, DATETIME, VARBINARY
 import json
+import io 
+import boto3
+
+
 
 
 db_host = os.environ['DB_DATABASE']
 db_user = os.environ['DB_USER']
 db_password = os.environ['DB_PASSWORD']
 db_name = "Cabins"
+
+
+s3 = boto3.client('s3')
 
 # TODO: move this into aws lambda that is triggered when file is uploaded to s3? - done!
 # TODO: clean up SQL queries with Session/Transaction ORM from SQLAlchemy?
@@ -47,6 +54,16 @@ def get_most_recent_date(table_name):
 logging.basicConfig(fn=desktop+'output.log',
                     filemode='w',
                     level=logging.DEBUG)
+
+
+def download_most_recent_scrape_file(bucket_name, folder_prefix):
+    scrape_files = s3.list_objects_v2(Bucket=bucket_name, Prefix=folder_prefix)['Contents']
+    latest_scrape_file = max(scrape_files, key=lambda x: x['LastModified'])
+    io_stream = io.BytesIO()
+    print(latest_scrape_file['Key'])
+    s3.download_fileobj(bucket_name, latest_scrape_file['Key'], io_stream)
+    io_stream.seek(0)
+    return io_stream
 
 def IsValidFile(fn):
 
@@ -208,9 +225,20 @@ def update_output_file():
                 data.to_excel(writer, sheet_name=cabinName, index_label='Date')
             cc_dict['__number_cabins'].to_excel(writer,
                             sheet_name='__number_cabins', index_label='Date')
+            
+def get_most_recent_date(table_name):
+    try:
+        conn = engine.connect()
+        return conn.execute(f"""SELECT MAX (Date) AS \"Max Date\" FROM `{table_name}`""")
+    except (Exception) as error:
+        raise error
+    finally:
+        conn.close()
+        
+# update_output_file(download_most_recent_scrape_file(bucket_name="ghosalre", folder_prefix='Data'))
 
 
-def lambda_handler(event, context):
+def handler(event, context):
     """Sample pure Lambda function
 
     Parameters
@@ -228,26 +256,6 @@ def lambda_handler(event, context):
     Returns
     ------
     """
-
-    for fn in sorted(glob(DirName+ "\\" + 'Data_Scraping_Output_*.xlsx')):
-        parsed_string = fn.split('Data_Scraping_Output_')[-1].split('.xlsx')[0]
-        try:
-            mydate = datetime.datetime.strptime(parsed_string, "%m_%d_%Y")
-        except ValueError as err:
-            print("Incorrect date format; ignoring file ", fn, err)
-
-            continue
-
-        date_str = '{:4}_{:02}_{:02}'.format(mydate.year, mydate.month, mydate.day)
-        newfn=NDName + "\\" + date_str + "_Data_Scraping_Output.xlsx"
-
-        # Copy only if file does NOT exist
-        if (os.path.exists(newfn) == False):
-            print("Copying ", fn, "to", newfn)
-            shutil.copyfile(fn, newfn)
-
-    # Update the output.xlsx file
-    update_output_file()
     return {
         "statusCode": 200,
         "body": json.dumps({
