@@ -90,6 +90,7 @@ def ingest_data(bits, table_name):
 def download_output_file(bucket_name, folder_prefix):
     scrape_files = s3.list_objects_v2(Bucket=bucket_name, Prefix=folder_prefix)['Contents']
     latest_output_file = max(scrape_files, key=lambda x: x['LastModified'])
+    print("Downloading latest output file {}".format(latest_output_file['Key']))
     io_stream = io.BytesIO()
     s3.download_fileobj(bucket_name, latest_output_file['Key'], io_stream)
     io_stream.seek(0)
@@ -107,6 +108,7 @@ def handler(event, context):
             df.drop(df.columns[[1, 2, 3, 4, 5, 6, 7]], axis=1, inplace=True)
             updateCabinColumns(cabin_name=cabin, cabin_df=df)
             df.drop(['Date', 'dow', 'C', 'B', 'tot_count', 'occ_delta'], axis=1, inplace=True)
+            print("Ingesting cabin {} into database".format(cabin))
             df.to_sql(cabin.strip(), engine, index=True,
                     schema=db_name, if_exists="replace", dtype={'date': DATETIME, 'occupancy': NVARCHAR(180), 'occ_count': SMALLINT, 'bmap_diff': NVARCHAR(180)})
         return {
