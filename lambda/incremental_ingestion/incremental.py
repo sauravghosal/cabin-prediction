@@ -16,12 +16,10 @@ import io
 import boto3
 
 
-
-
 db_host = os.environ['DB_DATABASE']
 db_user = os.environ['DB_USER']
 db_password = os.environ['DB_PASSWORD']
-db_name = "Cabins"
+db_name = "cabins"
 
 
 s3 = boto3.client('s3')
@@ -32,12 +30,6 @@ s3 = boto3.client('s3')
 
 engine = create_engine(
     f'mysql+pymysql://{db_user}:{db_password}@{db_host}/{db_name}')
-
-DirName = str((Path.cwd()).joinpath('scrape'))
-NDName = str((Path.cwd()).joinpath('output'))
-WriteFileName = str((Path.cwd()).joinpath('output.xlsx'))
-WriteTestFileName = str((Path.cwd()).joinpath('test.xlsx'))
-desktop = ''
 
 
 def get_most_recent_date(table_name):
@@ -51,96 +43,61 @@ def get_most_recent_date(table_name):
     finally:
         conn.close()
 
-logging.basicConfig(fn=desktop+'output.log',
-                    filemode='w',
-                    level=logging.DEBUG)
-
-
-def download_most_recent_scrape_file(bucket_name, folder_prefix):
+def download_new_scrape_files(bucket_name, folder_prefix, date):
+    print('Downloading new scrape files from {}'.format(bucket_name))
     scrape_files = s3.list_objects_v2(Bucket=bucket_name, Prefix=folder_prefix)['Contents']
-    latest_scrape_file = max(scrape_files, key=lambda x: x['LastModified'])
-    io_stream = io.BytesIO()
-    print(latest_scrape_file['Key'])
-    s3.download_fileobj(bucket_name, latest_scrape_file['Key'], io_stream)
-    io_stream.seek(0)
-    return io_stream
+    latest_scrape_files = list(filter(lambda x: IsValidFile(x['Key'].split('/')[-1], date), scrape_files))
+    print('Found {} new scrape files'.format(len(latest_scrape_files)))
+    for scrape_file in latest_scrape_files:
+        io_stream = io.BytesIO()
+        s3.download_fileobj(bucket_name, scrape_file['Key'], io_stream)
+        io_stream.seek(0)
+        yield io_stream
 
-def IsValidFile(fn):
+def IsValidFile(fn, prev_date):
 
     # Check for 2nd half of file name
     if (fn[10:].split('.')[0] != '_Data_Scraping_Output'):
         #print("Invalid file name: {}".format(fn))
-        return(False)
-
+        return False
     #Check for date part of the file name
     try:
         date = datetime.datetime.strptime(fn[0:10], '%Y_%m_%d')
-        return (True)
+        if date > prev_date:
+            return True
+        return False
     except ValueError as err:
         print("Invalid date in file name: {}".format(err))
-        return (False)
- 
+        return False
+    
+def get_most_recent_date(table_name):
+    try:
+        conn = engine.connect()
+        return conn.execute(f"""SELECT MAX(Date) FROM `{table_name}`""").first()['MAX(Date)']
+    except (Exception) as error:
+        raise error
+    finally:
+        conn.close()
+        
+def query_all_cabins():
+    try:
+        conn = engine.connect()
+        res = conn.execute(f"""select table_name from INFORMATION_SCHEMA.TABLES where TABLE_TYPE='BASE TABLE' AND table_schema='cabins'""")
+        cabins = []
+        for cabin in res:
+            cabins.append(cabin['TABLE_NAME'])
+        return cabins
+    except (Exception) as error:
+        raise error
+    finally:
+        conn.close()
 
 
-def update_output_file():
-    print('Inside {} .....'.format(inspect.currentframe().f_code.co_name))
+def update_output_file(file):
     #################################################################
     #   Reading 'output.xlsx' file
     #################################################################
-    lastDate='0000_00_00'
-    try:
-        print('Opening to read {}'.format(WriteFileName))
-        try:
-            #cc_dict = pd.read_excel('output.xlsx')
-            cc_dict = pd.read_excel('output.xlsx', sheet_name=None,
-                                dtype={ 'month1': str, 'month2': str,
-                                        'month3': str, 'month4': str,
-                                        'month5': str, 'month6': str,
-                                        'month7': str
-                                        }
-                                )
-        except Exception as ex:
-            print ('Unexpected Error in pd.read_excel: ', inspect.getframeinfo(inspect.currentframe()).function, ex)
-            exit()
-
-        # Find the last date -> query database for this
-        # remove code for _number_cabins
-        cabinList = list(cc_dict.keys())
-        for tab in cabinList:
-            # overall cabin view
-            if (tab == '__number_cabins'):
-                cachedNumCabin_dict = cc_dict[tab]
-                cachedNumCabin_dict.set_index('Date', inplace=True)
-                print('\tReading {:25}{:4} lines'.format(tab,
-                                    len(cc_dict[tab].index)))
-            # all the other cabin pages
-            else:
-                try:
-                    lastDate = cc_dict[tab].iloc[-1,:]['Date']
-                    cc_dict[tab].set_index('Date',inplace=True)
-                    cc_dict[tab] = cc_dict[tab].loc[:,'month1':'month7']
-                    print('\tReading {:25}{:4} lines'.format(tab,
-                                    len(cc_dict[tab].index)))
-                    # Adding the fixedOccupancy column as well.
-                    if (1):
-                        print("\t\tCleaning up ... {}".format(tab))
-                        mypd = fixAllOccupancyBitmaps(tab, cc_dict[tab])
-                        # Convert index from datetime to string
-                        mypd.index = mypd.index.strftime('%Y_%m_%d')
-                        cc_dict[tab]['occupancy'] = mypd
-                        cc_dict[tab]['occupancy'] = cc_dict[tab]['occupancy'].str.slice(stop=180)
-                except KeyError as err:
-                    print(err)
-                    print('Incorrect tab: {}  .. deleting '.format(tab))
-                    cc_dict.pop(tab, None)
-    except FileNotFoundError as err:
-        print("Input file not found .. continuing ....{}".format(err))
-        cc_dict = {}
-    except PermissionError as err:
-        print("Unable to openfile .. permission error {}".format(err))
-
-    print('Last date from previous file: {}'.format(lastDate))
-    dirtyFlag = False
+    
 
     #################################
     #   If no 'Occupancy' row
@@ -154,115 +111,95 @@ def update_output_file():
 
     ##############################################################
     #   Reading new input files ... and appending data to old file
+    scrapeWB = pd.read_excel(file, sheet_name=None,
+                            dtype={'monthAvailabe_1': str,
+                                'monthAvailabe_2': str,
+                                'monthAvailabe_3': str,
+                                'monthAvailabe_4': str,
+                                'monthAvailabe_5': str,
+                                'monthAvailabe_6': str,
+                                'monthAvailabe_7': str
+                                })
+    #         #### HACK! HACK ! HACK!
+    #### For cabinsusa, remove " Cabin Rental" from cabinname
+    if ('cabinsusa' in scrapeWB.keys()):
+        scrapeWB['cabinsusa']['CabinName'] = scrapeWB['cabinsusa']\
+            ['CabinName'].str.replace(" Cabin Rental", "")
+    print(scrapeWB)
+    #### end of hack ####
+    #         myseries = pd.Series(getCabinNumbers(scrapeWB), name=fn[0:10])
+    #         try:
+    #             cc_dict['__number_cabins'] = cc_dict.setdefault('__number_cabins', pd.DataFrame(columns=[])).append(myseries, verify_integrity=True)
+    #         except ValueError as err:
+    #             print('__number_cabins overlapping index {} .. not inserting'.
+    #                   format(fn[0:10]))
+    #         print('Reading {}'.format(fn[0:10]))
+    #         for mgmtco in scrapeWB.keys():
+    #             if (mgmtco in CabinsOfInterest.keys()):
+    #                 scrapeWB[mgmtco].set_index('CabinName', inplace=True)
+    #                 scrapeWB[mgmtco].columns = \
+    #                     [x.replace('monthAvailabe_','month') if ('monthAvailabe_' in x) else x for x in scrapeWB[mgmtco].columns]
+    #                 cabinList = CabinsOfInterest[mgmtco]
+    #                 for cabin in cabinList:
+    #                     #print('1. Cabin being checked .... ', cabin)
+    #                     try:
+    #                         cabin_info = scrapeWB[mgmtco].loc[cabin,'month1':'month7'].str.replace('\'','')
+    #                         #
+    #                         #   Calculate and add the 'occupancy'
+    #                         #
+    #                         #
+    #                         #print('2. Cabin being checked .... ', cabin)
+    #                         cabin_info.name = fn[0:10]
+    #                         cabin_info['occupancy'] = (fixOccupancyBitmap(cabin, cabin_info.name,
+    #                                            [cabin_info['month1'],
+    #                                             cabin_info['month2'],
+    #                                             cabin_info['month3'],
+    #                                             cabin_info['month4'],
+    #                                             cabin_info['month5'],
+    #                                             cabin_info['month6'],
+    #                                             cabin_info['month7']]))
+    #                         cc_dict[cabin] = cc_dict.setdefault(cabin, pd.DataFrame(columns=[])).append(cabin_info, verify_integrity=True)
+    #                         print('\t{} {}'.format(cabin, mgmtco))
+    #                         dirtyFlag = True
+    #                     except KeyError:
+    #                         print ("KeyError .. could not add cabin .. {} {}".format(cabin, fn[0:10]))
+    #                         pass
+    #                     except ValueError as err:
+    #                         print('\t***{} could not add {} due to overlap'.format(cabin, fn[0:10]))
     
-    # take this from s3 or EFS
-    for fn in os.listdir(NDName):
-        if (IsValidFile(fn) & (fn[0:10] > lastDate)):
-            scrapeWB = pd.read_excel(NDName+"\\"+fn, sheet_name=None,
-                                     dtype={'monthAvailabe_1': str,
-                                            'monthAvailabe_2': str,
-                                            'monthAvailabe_3': str,
-                                            'monthAvailabe_4': str,
-                                            'monthAvailabe_5': str,
-                                            'monthAvailabe_6': str,
-                                            'monthAvailabe_7': str
-                                            })
-            #### HACK! HACK ! HACK!
-            #### For cabinsusa, remove " Cabin Rental" from cabinname
-            if ('cabinsusa' in scrapeWB.keys()):
-                scrapeWB['cabinsusa']['CabinName'] = scrapeWB['cabinsusa']\
-                    ['CabinName'].str.replace(" Cabin Rental", "")
-            #### end of hack ####
-            myseries = pd.Series(getCabinNumbers(scrapeWB), name=fn[0:10])
-            try:
-                cc_dict['__number_cabins'] = cc_dict.setdefault('__number_cabins', pd.DataFrame(columns=[])).append(myseries, verify_integrity=True)
-            except ValueError as err:
-                print('__number_cabins overlapping index {} .. not inserting'.
-                      format(fn[0:10]))
-            print('Reading {}'.format(fn[0:10]))
-            for mgmtco in scrapeWB.keys():
-                if (mgmtco in CabinsOfInterest.keys()):
-                    scrapeWB[mgmtco].set_index('CabinName', inplace=True)
-                    scrapeWB[mgmtco].columns = \
-                        [x.replace('monthAvailabe_','month') if ('monthAvailabe_' in x) else x for x in scrapeWB[mgmtco].columns]
-                    cabinList = CabinsOfInterest[mgmtco]
-                    for cabin in cabinList:
-                        #print('1. Cabin being checked .... ', cabin)
-                        try:
-                            cabin_info = scrapeWB[mgmtco].loc[cabin,'month1':'month7'].str.replace('\'','')
-                            #
-                            #   Calculate and add the 'occupancy'
-                            #
-                            #
-                            #print('2. Cabin being checked .... ', cabin)
-                            cabin_info.name = fn[0:10]
-                            cabin_info['occupancy'] = (fixOccupancyBitmap(cabin, cabin_info.name,
-                                               [cabin_info['month1'],
-                                                cabin_info['month2'],
-                                                cabin_info['month3'],
-                                                cabin_info['month4'],
-                                                cabin_info['month5'],
-                                                cabin_info['month6'],
-                                                cabin_info['month7']]))
-                            cc_dict[cabin] = cc_dict.setdefault(cabin, pd.DataFrame(columns=[])).append(cabin_info, verify_integrity=True)
-                            print('\t{} {}'.format(cabin, mgmtco))
-                            dirtyFlag = True
-                        except KeyError:
-                            print ("KeyError .. could not add cabin .. {} {}".format(cabin, fn[0:10]))
-                            pass
-                        except ValueError as err:
-                            print('\t***{} could not add {} due to overlap'.format(cabin, fn[0:10]))
-
-    if (not dirtyFlag):
-        print("No new entries, lastDate={} .. skipping write".format(lastDate))
-    else:
-        with pd.ExcelWriter(WriteTestFileName) as writer:
-            print('Opening to write {}'.format(WriteTestFileName))
-            for cabinName, data in cc_dict.items():
-                print('\tWriting {:25}{:4} lines'.
-                      format(cabinName, len(data.index)))
-                data = data.astype(str)
-                data.to_excel(writer, sheet_name=cabinName, index_label='Date')
-            cc_dict['__number_cabins'].to_excel(writer,
-                            sheet_name='__number_cabins', index_label='Date')
+    # TODO: ingest into database
+    
+    # if (not dirtyFlag):
+    #     print("No new entries, lastDate={} .. skipping write".format(lastDate))
+    # else:
+    #     with pd.ExcelWriter(WriteTestFileName) as writer:
+    #         print('Opening to write {}'.format(WriteTestFileName))
+    #         for cabinName, data in cc_dict.items():
+    #             print('\tWriting {:25}{:4} lines'.
+    #                   format(cabinName, len(data.index)))
+    #             data = data.astype(str)
+    #             data.to_excel(writer, sheet_name=cabinName, index_label='Date')
+    #         cc_dict['__number_cabins'].to_excel(writer,
+    #                         sheet_name='__number_cabins', index_label='Date')
             
-def get_most_recent_date(table_name):
-    try:
-        conn = engine.connect()
-        return conn.execute(f"""SELECT MAX (Date) AS \"Max Date\" FROM `{table_name}`""")
-    except (Exception) as error:
-        raise error
-    finally:
-        conn.close()
         
-# update_output_file(download_most_recent_scrape_file(bucket_name="ghosalre", folder_prefix='Data'))
 
 
 def handler(event, context):
-    """Sample pure Lambda function
-
-    Parameters
-    ----------
-    event: dict, required
-        API Gateway Lambda Proxy Input Format
-
-        Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
-
-    context: object, required
-        Lambda Context runtime methods and attributes
-
-        Context doc: https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html
-
-    Returns
-    ------
-    """
+    cabins = query_all_cabins()
+    latest_date = get_most_recent_date(cabins[1])
+    for cabin in cabins[2:]:
+        if get_most_recent_date(cabin) > latest_date:
+            latest_date = get_most_recent_date(cabin) 
+    print(latest_date)
+    for scrape_file in download_new_scrape_files(bucket_name="ghosalre", folder_prefix='Data', date=latest_date):
+        update_output_file(scrape_file)
     return {
         "statusCode": 200,
         "body": json.dumps({
-            "message": "completed!",
+            "message": "incremental ingestion complete!",
             # "location": ip.text.replace("\n", "")
         }),
     }
-
 
 
