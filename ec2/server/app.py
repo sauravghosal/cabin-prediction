@@ -83,7 +83,11 @@ def query_all_occupancy_delta(table_name):
 def query_all_cabins():
     try:
         conn = engine.connect()
-        return conn.execute(f"""select table_name from INFORMATION_SCHEMA.TABLES where TABLE_TYPE='BASE TABLE' AND table_schema='cabins'""")
+        res = conn.execute(f"""select table_name from INFORMATION_SCHEMA.TABLES where TABLE_TYPE='BASE TABLE' AND table_schema='cabins'""")
+        cabins = []
+        for cabin in res:
+            cabins.append(cabin['TABLE_NAME'])
+        return cabins
     except (Exception) as error:
         app.logger.error(error)
     finally:
@@ -98,14 +102,7 @@ def home():
 
 @app.route('/api/cabins', methods=['GET'])
 def list_all_cabins():
-    cabins = []
-    for cabin in query_all_cabins():
-        # edge casees for apostrophes in cabin name
-        try: 
-            cabins.append(re.search("\'(.+?)\'", str(cabin)).group(1))
-        except: 
-            cabins.append(re.search("\"(.+?)\"", str(cabin)).group(1))
-    print(cabins)
+    cabins = query_all_cabins()
     return dict(cabins=cabins)
 
 # TODO: query string param validation on start_date, end_date, and cabin
