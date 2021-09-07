@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, DATETIME, NVARCHAR
 from sqlalchemy.sql.sqltypes import SMALLINT
 from appsupport import updateCabinColumns
-import atexit
 import boto3
 import io
 import json
@@ -119,10 +118,3 @@ def handler(event, context):
         }
     except Exception as err:
         raise err
-    
-   
-def close_db_connection():
-    print('Closing db connection')
-    engine.dispose()
-
-atexit.register(close_db_connection)
