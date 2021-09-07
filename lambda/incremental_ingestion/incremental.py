@@ -37,6 +37,21 @@ def get_most_recent_date(table_name):
     finally:
         conn.close()
         
+# TODO: reconfigure to use ORM models provided by sql-alchemy to clean up
+def query_occupancy_by_date_range(table_name:str, start_date:datetime, end_date:datetime):
+    try:
+        conn = engine.connect()
+        print('Finding occupancy data between {} and {} for cabin {}'.format(
+                        start_date, end_date, table_name))
+        return conn.execute(f"""
+          SELECT DATE, OCCUPANCY FROM `{table_name.strip()}` WHERE date BETWEEN '{start_date:%Y-%m-%d}' AND '{end_date:%Y-%m-%d} ORDER BY date ASC'
+          """)
+    except (Exception) as error:
+        raise error
+    finally:
+        conn.close()
+        engine.dispose()
+        
 def query_all_cabins():
     try:
         conn = engine.connect()
